@@ -22,11 +22,12 @@ function [K, outKern, sumKern, Kgvar] = rbfard2VardistPsi2Compute(rbfardKern, va
 
 % VARGPLVM
 
-try
-    pool_open = matlabpool('size')>0;
-catch e
-    pool_open = 0;
-end
+pool_open = HaveParallelPool();
+% try
+%     pool_open = matlabpool('size')>0;
+% catch e
+%     pool_open = 0;
+% end
 
 % The conditions for the parallel code to run, is the workers pool to be
 % open, the parallel flag to be active and the number of datapoints N to be
@@ -53,14 +54,18 @@ A = rbfardKern.inputScales;
 % first way
 sumKern = zeros(M,M); 
 
+%Slice the variables to be used in the parfor loop
+vardistcovars = vardist.covars;
+vardistmeans = vardist.means;
+
 parfor n=1:N
     %    
-    AS_n = (1 + 2*A.*vardist.covars(n,:)).^0.5;  
+    AS_n = (1 + 2*A.*vardistcovars(n,:)).^0.5;  
     
     normfactor =  1./prod(AS_n);
     
     %Z_n = (repmat(vardist.means(n,:),[M 1]) - Z)*0.5; 
-    Z_n = bsxfun(@minus, vardist.means(n,:), Z)*0.5;
+    Z_n = bsxfun(@minus, vardistmeans(n,:), Z)*0.5;
     %Z_n = Z_n.*repmat(sqrt(A)./AS_n,[M 1]);
     Z_n = bsxfun(@times, Z_n, sqrt(A)./AS_n);
     distZ = dist2(Z_n,-Z_n); 
