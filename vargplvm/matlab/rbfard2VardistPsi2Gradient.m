@@ -4,11 +4,13 @@ function [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2Gradient(rbfar
   
 % VARGPLVM
 
-try
-    pool_open = matlabpool('size')>0;
-catch e
-    pool_open = 0;
-end
+% My own code, found in ZabarasML
+pool_open = HaveParallelPool();
+% try
+%     pool_open = matlabpool('size')>0;
+% catch e
+%     pool_open = 0;
+% end
 
 if nargin < 5
     % If learnInducing == 0, gInd will be full of zeros.
@@ -24,11 +26,11 @@ end
 %if isfield(vardist, 'precomp') && ~isempty(vardist.precomp)
 %        [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2GradientPrecomp(rbfardKern, vardist, Z, covGrad, learnInducing);
 %else
-    if pool_open && (isfield(vardist,'parallel') && vardist.parallel) && size(vardist.means,1) > 15
-        [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2GradientPar(rbfardKern, vardist, Z, covGrad, learnInducing);
-    else
-        [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2GradientOrig(rbfardKern, vardist, Z, covGrad, learnInducing);
-    end
+if pool_open && (isfield(vardist,'parallel') && vardist.parallel) && size(vardist.means,1) > 15
+    [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2GradientPar(rbfardKern, vardist, Z, covGrad, learnInducing);
+else
+    [gKern, gVarmeans, gVarcovars, gInd] = rbfard2VardistPsi2GradientOrig(rbfardKern, vardist, Z, covGrad, learnInducing);
+end
 %end
 
 
