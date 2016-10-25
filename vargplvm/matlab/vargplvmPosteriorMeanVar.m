@@ -28,7 +28,7 @@ function [mu, varsigma] = vargplvmPosteriorMeanVar(model, X, varX)
 % (which is not Gaussian, however its moments can be computed in closed-form)
 
 if nargin < 3
-  vardistX.covars = repmat(0.0, size(X, 1), size(X, 2));%zeros(size(X, 1), size(X, 2));
+  vardistX.covars = zeros(size(X)); %repmat(0.0, size(X, 1), size(X, 2));
 else
   vardistX.covars = varX;
 end
@@ -42,12 +42,20 @@ vardistX.means = X;
 Ainv = model.P1' * model.P1; % size: NxN
 
 if ~isfield(model,'alpha')
-    model.alpha = Ainv*model.Psi1'*model.m; % size: 1xD
+    if isfield(model,'mOrig')
+        model.alpha = Ainv*model.Psi1'*model.mOrig;
+    else
+        model.alpha = Ainv*model.Psi1'*model.m; % size: vardistX.numData x model.d
+    end
+end
+if any(size(model.alpha) ~= [model.k, model.d])
+    warning(...
+        'Improper size for model.alpha detected (is model.m correct?)');
 end
 Psi1_star = kernVardistPsi1Compute(model.kern, vardistX, model.X_u);
 
 % mean prediction 
-mu = Psi1_star*model.alpha; % size: 1xD
+mu = Psi1_star*model.alpha; % size: vardistX.numData x model.d
 
 if nargout > 1
    % 
@@ -55,7 +63,8 @@ if nargout > 1
    vard = vardistCreate(zeros(1,model.q), model.q, 'gaussian');
    Kinvk = (model.invK_uu - (1/model.beta)*Ainv);
    %
-   for i=1:size(vardistX.means,1)
+   varsigma = zeros(size(vardistX.means,1), model.d);
+   for i=1:size(vardistX.means,1) % ==? vardistX.numData
       %
       vard.means = vardistX.means(i,:);
       vard.covars = vardistX.covars(i,:);
@@ -73,7 +82,7 @@ if nargout > 1
       varsigma(i,:) = varsigma(i,:) + vars; 
       %
    end
-   % 
+   % Incorporate noise layer in the prediction variance
    if isfield(model, 'beta')
       varsigma = varsigma + (1/model.beta);
    end
