@@ -40,8 +40,6 @@ else
 end
 
 
-
-
 function [K, outKern, sumKern, Kgvar] = rbfard2VardistPsi2ComputePar(rbfardKern, vardist, Z)
 
 % variational means
@@ -58,19 +56,23 @@ sumKern = zeros(M,M);
 vardistcovars = vardist.covars;
 vardistmeans = vardist.means;
 
+% replaced bsxfun with faster vectorized operations
 parfor n=1:N
     %    
     AS_n = (1 + 2*A.*vardistcovars(n,:)).^0.5;  
     
-    normfactor =  1./prod(AS_n);
+%     normfactor =  1./prod(AS_n);
     
     %Z_n = (repmat(vardist.means(n,:),[M 1]) - Z)*0.5; 
-    Z_n = bsxfun(@minus, vardistmeans(n,:), Z)*0.5;
+    %Z_n = bsxfun(@minus, vardistmeans(n,:), Z)*0.5;
+    Z_n = 0.5 * (vardistmeans(n,:) - Z);
     %Z_n = Z_n.*repmat(sqrt(A)./AS_n,[M 1]);
-    Z_n = bsxfun(@times, Z_n, sqrt(A)./AS_n);
+    %Z_n = bsxfun(@times, Z_n, sqrt(A)./AS_n);
+    Z_n = Z_n .* sqrt(A) ./ AS_n;
     distZ = dist2(Z_n,-Z_n); 
     
-    sumKern = sumKern + normfactor*exp(-distZ);  
+%     sumKern = sumKern + normfactor*exp(-distZ);  
+    sumKern = sumKern + exp(-distZ) / prod(AS_n);  
     %
 end
     
@@ -94,19 +96,28 @@ A = rbfardKern.inputScales;
     
 % first way
 sumKern = zeros(M,M); 
+
+% bsxfun is slow; fixed using normal MATLAB vectorized operations
 for n=1:N
     %    
-    AS_n = (1 + 2*A.*vardist.covars(n,:)).^0.5;  
+    AS_n = sqrt(1 + 2*A.*vardist.covars(n,:));  
     
-    normfactor =  1./prod(AS_n);
+%     normfactor =  1./prod(AS_n);
     
-    %Z_n = (repmat(vardist.means(n,:),[M 1]) - Z)*0.5; 
-    Z_n = bsxfun(@minus, vardist.means(n,:), Z)*0.5;
-    %Z_n = Z_n.*repmat(sqrt(A)./AS_n,[M 1]);
-    Z_n = bsxfun(@times, Z_n, sqrt(A)./AS_n);
+    % Subtract n-th row of latent variable posterior means from each row of
+    % Z and divide by 2:
+    % OLDER: Z_n = (repmat(vardist.means(n,:),[M 1]) - Z)*0.5; 
+    % OLD:   Z_n = bsxfun(@minus, vardist.means(n,:), Z)*0.5;
+    Z_n = 0.5 * (vardist.means(n,:) - Z);
+    
+    % Another operation...
+    % OLDER: Z_n = Z_n.*repmat(sqrt(A)./AS_n,[M 1]);
+    % OLD:   Z_n = bsxfun(@times, Z_n, sqrt(A)./AS_n);
+    Z_n = Z_n .* sqrt(A) ./ AS_n;
     distZ = dist2(Z_n,-Z_n); 
     
-    sumKern = sumKern + normfactor*exp(-distZ);  
+%     sumKern = sumKern + normfactor*exp(-distZ);  
+    sumKern = sumKern + exp(-distZ) / prod(AS_n);  
     %
 end
     
